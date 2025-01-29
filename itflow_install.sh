@@ -188,10 +188,75 @@ setup_webroot() {
     echo -e "${GREEN}Webroot set up at /var/www/${domain}.${NC}"
 }
 
+# Setup UFW (optional)
+setup_ufw() {
+    read -p "$(echo -e "${YELLOW}Do you want to set up UFW (Uncomplicated Fire Wall)? (y/n):${NC} ")" response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        log "Starting UFW setup"
+        show_progress "8. Installing and configuring UFW..."
+
+        {
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update >> "$LOG_FILE" 2>&1
+            apt-get install -y ufw >> "$LOG_FILE" 2>&1
+        } & spin "Installing UFW"
+
+        log "Setting default UFW policies"
+        show_progress "8.1. Setting default firewall policies..."
+        ufw default deny incoming >> "$LOG_FILE" 2>&1
+        ufw default allow outgoing >> "$LOG_FILE" 2>&1
+
+        log "Allowing HTTP and HTTPS traffic"
+        show_progress "8.2. Allowing HTTP and HTTPS traffic..."
+        ufw allow http >> "$LOG_FILE" 2>&1
+        ufw allow https >> "$LOG_FILE" 2>&1
+
+        # Get the current logged-in IP
+        CURRENT_IP=$(who | awk '{print $5}' | tr -d '()' | head -n 1)
+
+        if [[ -z "$CURRENT_IP" ]]; then
+            log "Could not determine SSH client's IP, skipping SSH restriction"
+            echo -e "${RED}Could not determine the SSH client's IP. Skipping SSH restriction.${NC}"
+        else
+            log "Detected SSH IP: $CURRENT_IP"
+            echo -e "${YELLOW}Your current SSH IP is: $CURRENT_IP${NC}"
+
+            # Check if it's a private IP
+            if [[ "$CURRENT_IP" =~ ^10\. ]] || [[ "$CURRENT_IP" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] || [[ "$CURRENT_IP" =~ ^192\.168\. ]]; then
+                log "Private IP detected ($CURRENT_IP), leaving SSH open"
+                echo -e "${YELLOW}Detected private IP ($CURRENT_IP). Not restricting SSH.${NC}"
+                ufw allow 22/tcp >> "$LOG_FILE" 2>&1
+            else
+                read -p "$(echo -e "${YELLOW}Do you want to restrict SSH access to $CURRENT_IP? (y/n):${NC} ")" ssh_response
+                if [[ "$ssh_response" =~ ^[Yy]$ ]]; then
+                    log "Restricting SSH to $CURRENT_IP"
+                    show_progress "8.3. Restricting SSH access to $CURRENT_IP..."
+                    ufw allow from "$CURRENT_IP" to any port 22 proto tcp >> "$LOG_FILE" 2>&1
+                else
+                    log "Allowing SSH from any IP"
+                    show_progress "8.3. echo "Allowing SSH from any IP..." >> "$LOG_FILE" 2>&1
+                    ufw allow 22/tcp >> "$LOG_FILE" 2>&1
+                fi
+            fi
+        fi
+
+        log "Enabling UFW"
+        show_progress "8.4. Enabling UFW..."
+        (ufw --force enable >> "$LOG_FILE" 2>&1) & spin "Enabling UFW"
+
+        ufw status verbose >> "$LOG_FILE" 2>&1
+        log "UFW setup completed"
+        show_progress "UFW setup completed!"
+    else
+        log "User skipped UFW setup"
+        echo -e "${YELLOW}Skipping UFW setup.${NC}"
+    fi
+}
+
 # Configure Apache
 setup_apache() {
     log "Configuring Apache"
-    show_progress "8. Configuring Apache..."
+    show_progress "9. Configuring Apache..."
     {
         a2enmod md >> "$LOG_FILE" 2>&1
         a2enmod ssl >> "$LOG_FILE" 2>&1
@@ -218,7 +283,7 @@ setup_apache() {
 # Clone ITFlow repository
 clone_itflow() {
     log "Cloning ITFlow"
-    show_progress "9. Cloning ITFlow..."
+    show_progress "10. Cloning ITFlow..."
     {
         git clone https://github.com/itflow-org/itflow.git /var/www/${domain} >> "$LOG_FILE" 2>&1
         chown -R www-data:www-data /var/www/${domain}
@@ -229,7 +294,7 @@ clone_itflow() {
 # Setup cron jobs
 setup_cronjobs() {
     log "Setting up cron jobs"
-    show_progress "10. Setting up cron jobs..."
+    show_progress "11. Setting up cron jobs..."
 
     CRON_FILE="/etc/cron.d/itflow"
 
@@ -262,7 +327,7 @@ setup_cronjobs() {
 # Setup MariaDB
 setup_mariadb() {
     log "MariaDB installation"
-    show_progress "11. MariaDB installation..."
+    show_progress "12. MariaDB installation..."
 
     if ! dpkg -l | grep -q mariadb-server || ! systemctl is-active --quiet mariadb; then
         log "Error: MariaDB is not installed or not running."
@@ -332,6 +397,7 @@ get_domain
 generate_passwords
 modify_php_ini
 setup_webroot
+setup_ufw
 setup_apache
 clone_itflow
 setup_cronjobs
