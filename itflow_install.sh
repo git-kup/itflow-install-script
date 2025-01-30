@@ -270,16 +270,6 @@ setup_apache() {
     CustomLog \${APACHE_LOG_DIR}/access.log combined
 </VirtualHost>
 EOF
-        
-#        apache2_conf="<VirtualHost *:80>
-#       ServerAdmin webmaster@localhost
-#      ServerName ${domain}
-#        DocumentRoot /var/www/${domain}
-#        ErrorLog \${APACHE_LOG_DIR}/error.log
-#        CustomLog \${APACHE_LOG_DIR}/access.log combined
-#    </VirtualHost>"
-
-#        echo "${apache2_conf}" > /etc/apache2/sites-available/${domain}.conf
 
         a2ensite ${domain}.conf >> "$LOG_FILE" 2>&1
         a2dissite 000-default.conf >> "$LOG_FILE" 2>&1
