@@ -262,14 +262,14 @@ setup_apache() {
         a2enmod ssl >> "$LOG_FILE" 2>&1
 
         cat > /etc/apache2/sites-available/${domain}.conf <<EOF
-<VirtualHost *:80>
+     <VirtualHost *:80>
     ServerAdmin webmaster@localhost
     ServerName ${domain}
     DocumentRoot /var/www/${domain}
     ErrorLog \${APACHE_LOG_DIR}/error.log
     CustomLog \${APACHE_LOG_DIR}/access.log combined
-</VirtualHost>
-EOF
+     </VirtualHost>
+     EOF
 
         a2ensite ${domain}.conf >> "$LOG_FILE" 2>&1
         a2dissite 000-default.conf >> "$LOG_FILE" 2>&1
