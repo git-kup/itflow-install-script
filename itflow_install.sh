@@ -260,7 +260,7 @@ setup_apache() {
     {
         a2enmod md >> "$LOG_FILE" 2>&1
         a2enmod ssl >> "$LOG_FILE" 2>&1
-        
+
         apache2_conf="<VirtualHost *:80>
         ServerAdmin webmaster@localhost
         ServerName ${domain}
