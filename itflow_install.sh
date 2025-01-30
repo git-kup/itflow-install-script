@@ -339,7 +339,7 @@ setup_mariadb() {
     {
     expect <<EOF >> "$LOG_FILE" 2>&1
 spawn mysql_secure_installation
-expect "Enter current password for root (enter for none):"
+expect "Enter current password for root \(enter for none\):"
 send "\r"
 expect "Switch to unix_socket authentication \[Y/n\]"
 send "n\r"
